@@ -11,6 +11,8 @@ import { type Static, Type } from "typebox";
 const execFileAsync = promisify(execFile);
 
 type ToolDefinition = Record<string, unknown>;
+type MouseButton = "left" | "right" | "middle";
+type ScrollDirection = "up" | "down" | "left" | "right";
 
 const ANTHROPIC_COMPUTER_USE_ENV = "PI_ANTHROPIC_COMPUTER_USE";
 const ANTHROPIC_COMPUTER_USE_WIDTH_ENV = "PI_ANTHROPIC_COMPUTER_USE_WIDTH";
@@ -20,6 +22,45 @@ const ANTHROPIC_COMPUTER_USE_BETA = "computer-use-2025-01-24";
 
 const ANTHROPIC_NATIVE_COMPUTER_TOOL_TYPE = "computer_20250124";
 const ANTHROPIC_NATIVE_COMPUTER_TOOL_NAME = "computer";
+
+const BUTTON_COMMANDS: Record<MouseButton, string> = { left: "c:.", right: "rc:.", middle: "mc:." };
+const WHEEL_MAP: Record<ScrollDirection, string> = { up: "wd", down: "wu", left: "wl", right: "wr" };
+const XDOTOOL_SCROLL_BUTTON: Record<ScrollDirection, string> = { up: "4", down: "5", left: "6", right: "7" };
+
+class ComputerActionValidationError extends Error {
+	constructor(message: string) {
+		super(message);
+		this.name = "ComputerActionValidationError";
+	}
+}
+
+class InvalidKeyComboError extends Error {
+	constructor(message: string) {
+		super(message);
+		this.name = "InvalidKeyComboError";
+	}
+}
+
+class UnsupportedMacOSKeyError extends Error {
+	constructor(message: string) {
+		super(message);
+		this.name = "UnsupportedMacOSKeyError";
+	}
+}
+
+class UnsupportedComputerUsePlatformError extends Error {
+	constructor(message: string) {
+		super(message);
+		this.name = "UnsupportedComputerUsePlatformError";
+	}
+}
+
+class ComputerActionExecutionError extends Error {
+	constructor(message: string) {
+		super(message);
+		this.name = "ComputerActionExecutionError";
+	}
+}
 
 export const computerSchema = Type.Object({
 	action: Type.Union([
@@ -69,19 +110,13 @@ export interface ComputerOperations {
 	screenshot(): Promise<{ base64: string }>;
 	cursorPosition(): Promise<{ x: number; y: number }>;
 	mouseMove(x: number, y: number): Promise<void>;
-	click(button: "left" | "right" | "middle", x?: number, y?: number, modifier?: string): Promise<void>;
+	click(button: MouseButton, x?: number, y?: number, modifier?: string): Promise<void>;
 	doubleClick(x?: number, y?: number): Promise<void>;
 	tripleClick(x?: number, y?: number): Promise<void>;
 	drag(startX: number, startY: number, endX: number, endY: number): Promise<void>;
 	mouseDown(button: "left", x?: number, y?: number): Promise<void>;
 	mouseUp(button: "left", x?: number, y?: number): Promise<void>;
-	scroll(
-		direction: "up" | "down" | "left" | "right",
-		amount: number,
-		x?: number,
-		y?: number,
-		modifier?: string,
-	): Promise<void>;
+	scroll(direction: ScrollDirection, amount: number, x?: number, y?: number, modifier?: string): Promise<void>;
 	keyPress(combo: string): Promise<void>;
 	type(text: string): Promise<void>;
 	holdKey(combo: string, durationSec: number): Promise<void>;
@@ -246,21 +281,25 @@ function errorResult(message: string): ComputerResult {
 
 function parseCoordinate(coordinate: number[] | undefined, action: string): [number, number] {
 	if (!coordinate || coordinate.length !== 2) {
-		throw new Error(`${action} requires coordinate [x, y]`);
+		throw new ComputerActionValidationError(`${action} requires coordinate [x, y]`);
 	}
-	return [coordinate[0] ?? 0, coordinate[1] ?? 0];
+	const [x, y] = coordinate;
+	if (typeof x !== "number" || typeof y !== "number" || !Number.isFinite(x) || !Number.isFinite(y)) {
+		throw new ComputerActionValidationError(`${action} requires finite coordinate [x, y]`);
+	}
+	return [x, y];
 }
 
 function parseDuration(duration: number | undefined, action: string): number {
 	if (duration === undefined || Number.isNaN(duration) || duration < 0) {
-		throw new Error(`${action} requires duration >= 0`);
+		throw new ComputerActionValidationError(`${action} requires duration >= 0`);
 	}
 	return duration;
 }
 
 function parseText(text: string | undefined, action: string): string {
 	if (!text) {
-		throw new Error(`${action} requires text`);
+		throw new ComputerActionValidationError(`${action} requires text`);
 	}
 	return text;
 }
@@ -371,10 +410,10 @@ export async function executeComputerAction(
 			}
 			case "scroll": {
 				if (!input.scroll_direction) {
-					throw new Error("scroll requires scroll_direction");
+					throw new ComputerActionValidationError("scroll requires scroll_direction");
 				}
 				if (input.scroll_amount === undefined || input.scroll_amount <= 0) {
-					throw new Error("scroll requires positive scroll_amount");
+					throw new ComputerActionValidationError("scroll requires positive scroll_amount");
 				}
 				const coordinate = input.coordinate;
 				if (coordinate) {
@@ -426,7 +465,7 @@ function parseKeyComboToAppleScript(combo: string): string {
 		.map((part) => part.trim().toLowerCase())
 		.filter(Boolean);
 	if (parts.length === 0) {
-		throw new Error("Empty key combo");
+		throw new InvalidKeyComboError("Empty key combo");
 	}
 	const main = parts[parts.length - 1] ?? "";
 	const modifiers = new Set(parts.slice(0, -1));
@@ -446,14 +485,14 @@ function mapKeyCode(key: string): number {
 	const map: Record<string, number> = { enter: 36, return: 36, tab: 48, space: 49, esc: 53, escape: 53 };
 	const code = map[key];
 	if (code === undefined) {
-		throw new Error(`Unsupported macOS special key: ${key}`);
+		throw new UnsupportedMacOSKeyError(`Unsupported macOS special key: ${key}`);
 	}
 	return code;
 }
 
 export function createUnsupportedOps(): ComputerOperations {
 	const fail = async (): Promise<never> => {
-		throw new Error("Computer use not supported on Windows");
+		throw new UnsupportedComputerUsePlatformError("Computer use not supported on Windows");
 	};
 	return {
 		screenshot: fail,
@@ -502,7 +541,7 @@ export function createMacOSComputerOps(): ComputerOperations {
 			if (x !== undefined && y !== undefined) {
 				await run("cliclick", [`m:${x},${y}`]);
 			}
-			const command = button === "left" ? "c:." : button === "right" ? "rc:." : "mc:.";
+			const command = BUTTON_COMMANDS[button] ?? "mc:.";
 			await run("cliclick", [command]);
 		},
 		async doubleClick(x, y) {
@@ -537,7 +576,7 @@ export function createMacOSComputerOps(): ComputerOperations {
 				await run("cliclick", [`m:${x},${y}`]);
 			}
 			const clicks = Math.max(1, Math.round(amount));
-			const wheel = direction === "up" ? "wd" : direction === "down" ? "wu" : direction === "left" ? "wl" : "wr";
+			const wheel = WHEEL_MAP[direction];
 			await run("cliclick", [`${wheel}:${clicks}`]);
 		},
 		async keyPress(combo) {
@@ -629,7 +668,7 @@ export function createLinuxComputerOps(): ComputerOperations {
 			if (x !== undefined && y !== undefined) {
 				await run("xdotool", ["mousemove", `${x}`, `${y}`]);
 			}
-			const button = direction === "up" ? "4" : direction === "down" ? "5" : direction === "left" ? "6" : "7";
+			const button = XDOTOOL_SCROLL_BUTTON[direction];
 			const repeat = `${Math.max(1, Math.round(amount))}`;
 			await run("xdotool", ["click", "--repeat", repeat, button]);
 		},
@@ -726,7 +765,9 @@ export default function anthropicComputerUseExtension(pi: ExtensionAPI): void {
 				const result = await executeComputerAction(params, ops);
 				if (result.isError) {
 					const firstContent = result.content[0];
-					throw new Error(firstContent?.type === "text" ? firstContent.text : "Computer action failed");
+					throw new ComputerActionExecutionError(
+						firstContent?.type === "text" ? firstContent.text : "Computer action failed",
+					);
 				}
 				return { content: result.content, details: undefined };
 			},

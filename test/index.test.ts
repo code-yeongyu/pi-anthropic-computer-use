@@ -202,6 +202,18 @@ describe("anthropic-computer-use extension", () => {
 		expect(result.isError).toBe(true);
 	});
 
+	it("mouse_move malformed coordinate returns error without dispatching", async () => {
+		const ops = makeMockOps();
+		const coordinate = [Number.NaN, 1];
+		delete coordinate[1];
+
+		const result = await executeComputerAction({ action: "mouse_move", coordinate }, ops);
+
+		expect(result.isError).toBe(true);
+		expect(result.content[0]).toEqual({ type: "text", text: "mouse_move requires finite coordinate [x, y]" });
+		expect(ops.calls).toEqual([]);
+	});
+
 	it("screenshot action returns image", async () => {
 		const ops = makeMockOps();
 		const result = await executeComputerAction({ action: "screenshot" }, ops);
