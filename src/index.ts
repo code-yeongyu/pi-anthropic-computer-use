@@ -178,6 +178,14 @@ export function isAnthropicComputerUseEnabled(): boolean {
 	return getComputerEnableState().enabled;
 }
 
+export function isAnthropicComputerUseSupportedModel(modelId: string | undefined): boolean {
+	if (!modelId) {
+		return true;
+	}
+	const normalized = modelId.toLowerCase();
+	return !normalized.includes("opus-4-7") && !normalized.includes("opus-4.7");
+}
+
 function isComputerToolType(value: unknown): value is string {
 	return typeof value === "string" && value.startsWith("computer_");
 }
@@ -211,8 +219,11 @@ function mergeBetaHeader(existing: unknown): string {
 	return [...existingParts, ANTHROPIC_COMPUTER_USE_BETA].join(",");
 }
 
-export function addAnthropicComputerUseToPayload(api: Api | undefined, payload: unknown): unknown {
+export function addAnthropicComputerUseToPayload(api: Api | undefined, payload: unknown, modelId?: string): unknown {
 	if (api !== "anthropic-messages") {
+		return payload;
+	}
+	if (!isAnthropicComputerUseSupportedModel(modelId)) {
 		return payload;
 	}
 	const state = getComputerEnableState();
@@ -778,11 +789,14 @@ export default function anthropicComputerUseExtension(pi: ExtensionAPI): void {
 		if (extensionDisabledForSession) {
 			return event.payload;
 		}
-		return addAnthropicComputerUseToPayload(ctx.model?.api, event.payload);
+		return addAnthropicComputerUseToPayload(ctx.model?.api, event.payload, ctx.model?.id);
 	});
 
 	pi.on("before_agent_start", async (event, ctx) => {
 		if (ctx.model?.api !== "anthropic-messages") {
+			return undefined;
+		}
+		if (!isAnthropicComputerUseSupportedModel(ctx.model?.id)) {
 			return undefined;
 		}
 		if (extensionDisabledForSession) {

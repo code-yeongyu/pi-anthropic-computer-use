@@ -8,6 +8,7 @@ import {
 	createUnsupportedOps,
 	executeComputerAction,
 	isAnthropicComputerUseEnabled,
+	isAnthropicComputerUseSupportedModel,
 } from "../src/index.js";
 
 const ENV_ENABLE = "PI_ANTHROPIC_COMPUTER_USE";
@@ -126,6 +127,27 @@ describe("anthropic-computer-use extension", () => {
 			display_width_px: 1920,
 			display_height_px: 1080,
 		});
+	});
+
+	it("leaves payload unchanged for Opus 4.7 because native computer use is unsupported", () => {
+		setEnabled();
+		const payload = {
+			tools: [{ name: "computer", input_schema: { type: "object" } }],
+			headers: { "anthropic-beta": "foo" },
+			extra_body: { betas: ["bar"] },
+		};
+
+		const result = addAnthropicComputerUseToPayload("anthropic-messages", payload, "claude-opus-4-7");
+
+		expect(result).toBe(payload);
+	});
+
+	it("detects Opus 4.7 aliases as unsupported for native computer use", () => {
+		expect(isAnthropicComputerUseSupportedModel("claude-opus-4-7")).toBe(false);
+		expect(isAnthropicComputerUseSupportedModel("anthropic.claude-opus-4-7")).toBe(false);
+		expect(isAnthropicComputerUseSupportedModel("claude-opus-4.7")).toBe(false);
+		expect(isAnthropicComputerUseSupportedModel("claude-sonnet-4-6")).toBe(true);
+		expect(isAnthropicComputerUseSupportedModel(undefined)).toBe(true);
 	});
 
 	it("includes display_number when set", () => {

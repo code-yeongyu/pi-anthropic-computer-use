@@ -8,7 +8,7 @@ This package is the standalone extraction of senpi's former builtin `anthropic-c
 
 ## Behavior
 
-When `PI_ANTHROPIC_COMPUTER_USE` is enabled, dimensions are valid, and API is `anthropic-messages`, the extension:
+When `PI_ANTHROPIC_COMPUTER_USE` is enabled, dimensions are valid, API is `anthropic-messages`, and the selected model supports Anthropic's native computer-use beta, the extension:
 
 1. Registers a function tool named `computer` with a 16-action executor:
    - `screenshot`, `key`, `type`, `mouse_move`
@@ -21,6 +21,8 @@ When `PI_ANTHROPIC_COMPUTER_USE` is enabled, dimensions are valid, and API is `a
    - header: `anthropic-beta: computer-use-2025-01-24`
    - extra body: `betas: ["computer-use-2025-01-24"]`
 5. Appends a system-prompt section informing the model about display dimensions and computer tool usage.
+
+Claude Opus 4.7 does not currently support `computer_20250124`. For Opus 4.7 model ids, the extension does not rewrite the provider payload, add the computer-use beta, or append the native-computer system prompt.
 
 ## Environment Variables
 

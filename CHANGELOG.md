@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+
+- Skip native `computer_20250124` payload injection, beta wiring, and native-computer prompt text for Claude Opus 4.7 model ids, which Anthropic rejects for computer-use requests.
+
 ## [0.1.0] - 2026-05-07
 
 ### Added
