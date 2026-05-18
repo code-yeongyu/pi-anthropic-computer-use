@@ -179,7 +179,7 @@ describe("anthropic-computer-use extension", () => {
 			tools: [{ name: "computer", input_schema: { type: "object" } }],
 		}) as { tools: Array<Record<string, unknown>> };
 		expect(result.tools).toHaveLength(1);
-		expect(result.tools[0]?.type).toBe("computer_20250124");
+		expect(result.tools[0]?.["type"]).toBe("computer_20250124");
 	});
 
 	it("preserves other tools", () => {
@@ -187,8 +187,8 @@ describe("anthropic-computer-use extension", () => {
 		const result = addAnthropicComputerUseToPayload("anthropic-messages", {
 			tools: [{ name: "read" }, { name: "write" }],
 		}) as { tools: Array<Record<string, unknown>> };
-		expect(result.tools.some((tool) => tool.name === "read")).toBe(true);
-		expect(result.tools.some((tool) => tool.name === "write")).toBe(true);
+		expect(result.tools.some((tool) => tool["name"] === "read")).toBe(true);
+		expect(result.tools.some((tool) => tool["name"] === "write")).toBe(true);
 	});
 
 	it("accepts all actions in schema", () => {
@@ -387,8 +387,8 @@ describe("anthropic-computer-use extension", () => {
 	it("injects anthropic beta header and extra_body betas", () => {
 		setEnabled();
 		const result = addAnthropicComputerUseToPayload("anthropic-messages", { tools: [] }) as Record<string, unknown>;
-		expect((result.headers as Record<string, unknown>)["anthropic-beta"]).toContain("computer-use-2025-01-24");
-		expect((result.extra_body as Record<string, unknown>).betas).toContain("computer-use-2025-01-24");
+		expect((result["headers"] as Record<string, unknown>)["anthropic-beta"]).toContain("computer-use-2025-01-24");
+		expect((result["extra_body"] as Record<string, unknown>)["betas"]).toContain("computer-use-2025-01-24");
 	});
 
 	it("preserves existing beta values", () => {
@@ -398,7 +398,7 @@ describe("anthropic-computer-use extension", () => {
 			headers: { "anthropic-beta": "foo" },
 			extra_body: { betas: ["bar"] },
 		}) as Record<string, unknown>;
-		expect((result.headers as Record<string, unknown>)["anthropic-beta"]).toBe("foo,computer-use-2025-01-24");
-		expect((result.extra_body as Record<string, unknown>).betas).toEqual(["bar", "computer-use-2025-01-24"]);
+		expect((result["headers"] as Record<string, unknown>)["anthropic-beta"]).toBe("foo,computer-use-2025-01-24");
+		expect((result["extra_body"] as Record<string, unknown>)["betas"]).toEqual(["bar", "computer-use-2025-01-24"]);
 	});
 });

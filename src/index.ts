@@ -197,7 +197,7 @@ function sanitizeTools(tools: unknown[]): ToolDefinition[] {
 			continue;
 		}
 		const shouldStripFunctionVariant =
-			tool.name === ANTHROPIC_NATIVE_COMPUTER_TOOL_NAME && !isComputerToolType(tool.type);
+			tool["name"] === ANTHROPIC_NATIVE_COMPUTER_TOOL_NAME && !isComputerToolType(tool["type"]);
 		if (!shouldStripFunctionVariant) {
 			sanitizedTools.push(tool);
 		}
@@ -234,9 +234,9 @@ export function addAnthropicComputerUseToPayload(api: Api | undefined, payload: 
 		return payload;
 	}
 
-	const tools = Array.isArray(payload.tools) ? payload.tools : [];
+	const tools = Array.isArray(payload["tools"]) ? payload["tools"] : [];
 	const sanitizedTools = sanitizeTools(tools);
-	const hasNativeComputer = sanitizedTools.some((tool) => isComputerToolType(tool.type));
+	const hasNativeComputer = sanitizedTools.some((tool) => isComputerToolType(tool["type"]));
 	if (!hasNativeComputer) {
 		sanitizedTools.push({
 			type: ANTHROPIC_NATIVE_COMPUTER_TOOL_TYPE,
@@ -247,14 +247,15 @@ export function addAnthropicComputerUseToPayload(api: Api | undefined, payload: 
 		});
 	}
 
-	const existingBetas = isRecord(payload.extra_body) ? payload.extra_body.betas : undefined;
+	const extraBody = payload["extra_body"];
+	const existingBetas = isRecord(extraBody) ? extraBody["betas"] : undefined;
 	const mergedBetas = Array.isArray(existingBetas)
 		? existingBetas.includes(ANTHROPIC_COMPUTER_USE_BETA)
 			? existingBetas
 			: [...existingBetas, ANTHROPIC_COMPUTER_USE_BETA]
 		: [ANTHROPIC_COMPUTER_USE_BETA];
 
-	const headers = isRecord(payload.headers) ? payload.headers : {};
+	const headers = isRecord(payload["headers"]) ? payload["headers"] : {};
 	const nextHeaders = {
 		...headers,
 		"anthropic-beta": mergeBetaHeader(headers["anthropic-beta"]),
@@ -265,7 +266,7 @@ export function addAnthropicComputerUseToPayload(api: Api | undefined, payload: 
 		tools: sanitizedTools,
 		headers: nextHeaders,
 		extra_body: {
-			...(isRecord(payload.extra_body) ? payload.extra_body : {}),
+			...(isRecord(extraBody) ? extraBody : {}),
 			betas: mergedBetas,
 		},
 	};
