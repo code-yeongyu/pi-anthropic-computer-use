@@ -47,15 +47,12 @@ Install dependencies:
 ## Installation
 
 ```bash
-# From npm (once published)
-pi install npm:pi-anthropic-computer-use
-
 # From git
 pi install git:github.com/code-yeongyu/pi-anthropic-computer-use
 
 # Manual placement
 git clone https://github.com/code-yeongyu/pi-anthropic-computer-use ~/.pi/agent/extensions/pi-anthropic-computer-use
-cd ~/.pi/agent/extensions/pi-anthropic-computer-use && npm install
+cd ~/.pi/agent/extensions/pi-anthropic-computer-use && bun install
 
 # Dev / one-shot test
 pi -e /path/to/pi-anthropic-computer-use/src/index.ts
