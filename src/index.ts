@@ -4,8 +4,8 @@ import { readFile, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import { promisify } from "node:util";
-import type { Api, TextContent } from "@mariozechner/pi-ai";
-import type { AgentToolResult, ExtensionAPI } from "@mariozechner/pi-coding-agent";
+import type { Api, TextContent } from "@earendil-works/pi-ai";
+import type { AgentToolResult, ExtensionAPI } from "@earendil-works/pi-coding-agent";
 import { type Static, Type } from "typebox";
 
 const execFileAsync = promisify(execFile);
@@ -292,7 +292,7 @@ function errorResult(message: string): ComputerResult {
 }
 
 function parseCoordinate(coordinate: number[] | undefined, action: string): [number, number] {
-	if (!coordinate || coordinate.length !== 2) {
+	if (coordinate?.length !== 2) {
 		throw new ComputerActionValidationError(`${action} requires coordinate [x, y]`);
 	}
 	const [x, y] = coordinate;
